@@ -1,6 +1,8 @@
 import dash
 from dash import html, dcc
 import importlib
+from dotenv import load_dotenv
+load_dotenv()
 import os
 
 app = dash.Dash(__name__, title="Life Dashboard")
