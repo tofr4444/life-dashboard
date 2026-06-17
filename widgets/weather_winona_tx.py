@@ -7,4 +7,4 @@ build_callback(WIDGET_ID, LAT, LON, LABEL)
 
 
 def layout():
-    return build_layout(WIDGET_ID)
+    return build_layout(WIDGET_ID, title="Winona Weather")

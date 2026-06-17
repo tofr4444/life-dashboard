@@ -68,9 +68,9 @@ def hourly_chart(data):
     return fig
 
 
-def build_layout(widget_id):
+def build_layout(widget_id, title="Weather"):
     return html.Div([
-        html.H3("Weather", style={"marginTop": 0}),
+        html.H3(title, style={"marginTop": 0}),
         html.Div(id=f"{widget_id}-summary", style={"marginBottom": "10px"}),
         dcc.Graph(id=f"{widget_id}-chart", config={"displayModeBar": False}),
         html.Div(id=f"{widget_id}-details", style={"fontSize": "0.8rem", "color": "#666", "marginTop": "8px"}),
@@ -126,4 +126,4 @@ build_callback(WIDGET_ID, LAT, LON, LABEL)
 
 
 def layout():
-    return build_layout(WIDGET_ID)
+    return build_layout(WIDGET_ID, title="Home Weather")
