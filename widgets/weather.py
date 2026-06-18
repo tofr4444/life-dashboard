@@ -43,15 +43,18 @@ def hourly_chart(data):
             precip_prob.append(hourly["precipitation_probability"][i])
 
     now_label = now.strftime("%I %p").lstrip("0")
+    now_idx = times.index(now_label) if now_label in times else None
 
     fig = go.Figure()
-    fig.add_vline(
-        x=now_label,
-        line=dict(color="#6366f1", width=2, dash="dash"),
-        annotation_text="Now",
-        annotation_position="top",
-        annotation_font=dict(color="#6366f1", size=11),
-    )
+    if now_idx is not None:
+        fig.add_trace(go.Scatter(
+            x=[now_label, now_label], y=[0, 1], yaxis="y3",
+            mode="lines+text",
+            line=dict(color="#6366f1", width=2, dash="dash"),
+            text=["", "Now"], textposition="top center",
+            textfont=dict(color="#6366f1", size=11),
+            showlegend=False, hoverinfo="skip",
+        ))
     fig.add_trace(go.Scatter(
         x=times, y=temps, name="Temp °F", mode="lines+markers",
         line=dict(color="#f97316", width=2), marker=dict(size=5),
@@ -71,6 +74,7 @@ def hourly_chart(data):
         yaxis=dict(title="°F", tickfont=dict(size=11), gridcolor="#f0f0f0"),
         yaxis2=dict(title="Rain %", overlaying="y", side="right",
                     range=[0, 100], tickfont=dict(size=11), showgrid=False),
+        yaxis3=dict(overlaying="y", range=[0, 1], showticklabels=False, showgrid=False),
         xaxis=dict(tickfont=dict(size=11)),
         font=dict(family="sans-serif"),
     )
