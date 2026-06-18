@@ -1,10 +1,31 @@
 {
+  "pages": [
+    {
+      "id": "home",
+      "name": "Home",
+      "widget_ids": [
+        "google_calendar",
+        "weather__home",
+        "weather__winona_tx",
+        "weather__casper_3becc6"
+      ],
+      "layout": {
+        "lg": [
+          {"i": "google_calendar",       "x": 0, "y": 0, "w": 4, "h": 6},
+          {"i": "weather__home",         "x": 4, "y": 0, "w": 4, "h": 6},
+          {"i": "weather__winona_tx",    "x": 8, "y": 0, "w": 4, "h": 6},
+          {"i": "weather__casper_3becc6","x": 0, "y": 6, "w": 4, "h": 6}
+        ]
+      }
+    }
+  ],
   "widgets": {
-    "clock": {"enabled": true, "label": "Clock"},
-    "google_calendar": {"enabled": true, "label": "Google Calendar"}
+    "clock":            {"label": "Clock"},
+    "google_calendar":  {"label": "Google Calendar"}
   },
   "weather_locations": [
-    {"id": "home", "title": "Home Weather", "lat": 33.9787, "lon": -84.4063, "label": "Marietta, GA"},
-    {"id": "winona_tx", "title": "Winona Weather", "lat": 32.4896, "lon": -95.1672, "label": "Winona, TX"}
+    {"id": "home",           "title": "Home Weather",   "lat": 33.9787,  "lon": -84.4063,   "label": "Marietta, GA"},
+    {"id": "winona_tx",      "title": "Winona Weather", "lat": 32.4896,  "lon": -95.1672,   "label": "Winona, TX"},
+    {"id": "casper_3becc6",  "title": "Casper Weather", "lat": 42.86663, "lon": -106.31308, "label": "Casper, Wyoming"}
   ]
 }

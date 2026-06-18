@@ -1,9 +1,11 @@
 import datetime
 from zoneinfo import ZoneInfo
 import requests
-from dash import html, dcc, callback, Output, Input
+from dash import html, dcc, callback, Output, Input, State, ALL
 import plotly.graph_objects as go
 from data.config_utils import load_config
+
+WEATHER_PREFIX = "weather__"
 
 WMO_CODES = {
     0: ("Clear", "☀️"), 1: ("Mostly Clear", "🌤️"), 2: ("Partly Cloudy", "⛅"),
@@ -31,7 +33,7 @@ def fetch_weather(lat, lon):
     return r.json()
 
 
-def hourly_chart(data):
+def hourly_chart(data, loc_id):
     hourly = data["hourly"]
     tz = ZoneInfo(data["timezone"])
     now = datetime.datetime.now(tz)
@@ -73,22 +75,18 @@ def hourly_chart(data):
     )
     if now_idx is not None:
         fig.update_layout(
-            shapes=[dict(
-                type="line", xref="x", yref="paper",
-                x0=now_idx, x1=now_idx, y0=0, y1=1,
-                line=dict(color="#6366f1", width=2, dash="dash"),
-            )],
-            annotations=[dict(
-                xref="x", yref="paper",
-                x=now_idx, y=1.02,
-                text="Now", showarrow=False,
-                font=dict(color="#6366f1", size=11),
-            )],
+            shapes=[dict(type="line", xref="x", yref="paper",
+                         x0=now_idx, x1=now_idx, y0=0, y1=1,
+                         line=dict(color="#6366f1", width=2, dash="dash"))],
+            annotations=[dict(xref="x", yref="paper", x=now_idx, y=1.02,
+                               text="Now", showarrow=False,
+                               font=dict(color="#6366f1", size=11))],
         )
     return fig
 
 
-def render_location_panel(loc, data):
+def render_location_content(loc, data):
+    """Weather content without the .widget wrapper (wrapper is the grid child)."""
     tz = ZoneInfo(data["timezone"])
     now_hour = datetime.datetime.now(tz).hour
     hourly = data["hourly"]
@@ -108,7 +106,8 @@ def render_location_panel(loc, data):
 
     summary = html.Div([
         html.Span(f"{icon} {desc}  ", style={"fontSize": "1.1rem"}),
-        html.Span(f"{current_temp:.0f}°F", style={"fontSize": "1.8rem", "fontWeight": "bold"}),
+        html.Span(f"{current_temp:.0f}°F",
+                  style={"fontSize": "1.8rem", "fontWeight": "bold"}),
         html.Span(f"  feels {current_feels:.0f}°F", style={"color": "#888"}),
         html.Div(f"H: {hi:.0f}°  L: {lo:.0f}°  |  {loc['label']}",
                  style={"color": "#666", "fontSize": "0.85rem"}),
@@ -119,35 +118,45 @@ def render_location_panel(loc, data):
     return html.Div([
         html.H3(loc["title"], style={"marginTop": 0}),
         html.Div(summary, style={"marginBottom": "10px"}),
-        dcc.Graph(id=f"weather-chart-{loc['id']}", figure=hourly_chart(data),
+        dcc.Graph(id=f"weather-chart-{loc['id']}", figure=hourly_chart(data, loc["id"]),
                   config={"displayModeBar": False}),
         html.Div(details, style={"fontSize": "0.8rem", "color": "#666", "marginTop": "8px"}),
-    ], className="widget")
-
-
-def layout():
-    return html.Div([
-        html.Div(id="weather-panels", className="widget-grid",
-                 style={"paddingTop": 0}),
-        dcc.Interval(id="weather-interval", interval=30 * 60 * 1000, n_intervals=0),
     ])
 
 
-@callback(Output("weather-panels", "children"), Input("weather-interval", "n_intervals"))
-def update_all_weather(_):
+def weather_grid_child(loc_id):
+    """Returns the draggable-grid child for a weather location (string id for grid)."""
+    return html.Div(
+        id=f"{WEATHER_PREFIX}{loc_id}",
+        children=html.Div(id={"type": "weather-panel", "id": loc_id}),
+        className="widget",
+        style={"height": "100%", "overflow": "auto", "boxSizing": "border-box"},
+    )
+
+
+# ── Single callback handles ALL weather panels on the current page ────────────
+
+@callback(
+    Output({"type": "weather-panel", "id": ALL}, "children"),
+    Input("weather-interval", "n_intervals"),
+    Input("page-widgets-store", "data"),
+    State({"type": "weather-panel", "id": ALL}, "id"),
+)
+def update_weather_panels(_, _store, panel_ids):
+    if not panel_ids:
+        return []
     config = load_config()
-    locations = config.get("weather_locations", [])
-    if not locations:
-        return html.Div("No weather locations configured. Add some in Admin.",
-                        style={"color": "#aaa", "padding": "20px"})
-    panels = []
-    for loc in locations:
+    loc_map = {loc["id"]: loc for loc in config["weather_locations"]}
+    results = []
+    for panel_id in panel_ids:
+        loc_id = panel_id["id"]
+        loc = loc_map.get(loc_id)
+        if not loc:
+            results.append(html.Div("Location not found.", style={"color": "red"}))
+            continue
         try:
             data = fetch_weather(loc["lat"], loc["lon"])
-            panels.append(render_location_panel(loc, data))
+            results.append(render_location_content(loc, data))
         except Exception as e:
-            panels.append(html.Div([
-                html.H3(loc["title"], style={"marginTop": 0}),
-                html.Div(f"Error: {e}", style={"color": "red"}),
-            ], className="widget"))
-    return panels
+            results.append(html.Div(f"Error: {e}", style={"color": "red"}))
+    return results
