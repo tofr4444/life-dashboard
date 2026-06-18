@@ -46,15 +46,6 @@ def hourly_chart(data):
     now_idx = times.index(now_label) if now_label in times else None
 
     fig = go.Figure()
-    if now_idx is not None:
-        fig.add_trace(go.Scatter(
-            x=[now_label, now_label], y=[0, 1], yaxis="y3",
-            mode="lines+text",
-            line=dict(color="#6366f1", width=2, dash="dash"),
-            text=["", "Now"], textposition="top center",
-            textfont=dict(color="#6366f1", size=11),
-            showlegend=False, hoverinfo="skip",
-        ))
     fig.add_trace(go.Scatter(
         x=times, y=temps, name="Temp °F", mode="lines+markers",
         line=dict(color="#f97316", width=2), marker=dict(size=5),
@@ -74,10 +65,23 @@ def hourly_chart(data):
         yaxis=dict(title="°F", tickfont=dict(size=11), gridcolor="#f0f0f0"),
         yaxis2=dict(title="Rain %", overlaying="y", side="right",
                     range=[0, 100], tickfont=dict(size=11), showgrid=False),
-        yaxis3=dict(overlaying="y", range=[0, 1], showticklabels=False, showgrid=False),
         xaxis=dict(tickfont=dict(size=11)),
         font=dict(family="sans-serif"),
     )
+    if now_idx is not None:
+        fig.update_layout(
+            shapes=[dict(
+                type="line", xref="x", yref="paper",
+                x0=now_idx, x1=now_idx, y0=0, y1=1,
+                line=dict(color="#6366f1", width=2, dash="dash"),
+            )],
+            annotations=[dict(
+                xref="x", yref="paper",
+                x=now_idx, y=1.02,
+                text="Now", showarrow=False,
+                font=dict(color="#6366f1", size=11),
+            )],
+        )
     return fig
 
 
