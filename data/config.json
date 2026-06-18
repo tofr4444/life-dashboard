@@ -26,12 +26,34 @@
     }
   ],
   "widgets": {
-    "clock":           {"label": "Clock"},
-    "google_calendar": {"label": "Google Calendar"}
+    "clock": {
+      "label": "Clock"
+    },
+    "google_calendar": {
+      "label": "Google Calendar"
+    }
   },
   "weather_locations": [
-    {"id": "home",          "title": "Home Weather",   "lat": 33.9787,  "lon": -84.4063,   "label": "Marietta, GA"},
-    {"id": "winona_tx",     "title": "Winona Weather", "lat": 32.4896,  "lon": -95.1672,   "label": "Winona, TX"},
-    {"id": "casper_3becc6", "title": "Casper Weather", "lat": 42.86663, "lon": -106.31308, "label": "Casper, Wyoming"}
+    {
+      "id": "home",
+      "title": "Home Weather",
+      "lat": 33.9787,
+      "lon": -84.4063,
+      "label": "Marietta, GA"
+    },
+    {
+      "id": "winona_tx",
+      "title": "Winona Weather",
+      "lat": 32.4896,
+      "lon": -95.1672,
+      "label": "Winona, TX"
+    },
+    {
+      "id": "casper_3becc6",
+      "title": "Casper Weather",
+      "lat": 42.86663,
+      "lon": -106.31308,
+      "label": "Casper, Wyoming"
+    }
   ]
 }

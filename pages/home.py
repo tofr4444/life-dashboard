@@ -1,5 +1,4 @@
 import dash
-import dash_draggable
 from dash import html, dcc, callback, Output, Input
 from data.config_utils import load_config, save_config
 from widgets import clock, google_calendar, weather  # noqa: F401 — registers callbacks
@@ -7,38 +6,39 @@ from widgets.weather import WEATHER_PREFIX
 
 dash.register_page(__name__, path="/")
 
-ROW_HEIGHT = 80
+ROW_HEIGHT = 80   # px per grid row
+COL_UNIT = "8.333%"  # 1 of 12 columns
 DEFAULT_W = 4
 DEFAULT_H = 6
 
 
-def build_grid_child(widget_id, layout_item):
-    x = layout_item.get("x", 0)
-    y = layout_item.get("y", 0)
-    w = layout_item.get("w", DEFAULT_W)
-    h = layout_item.get("h", DEFAULT_H)
+def build_widget_cell(widget_id, item):
+    """Return a widget wrapped in a CSS-grid-placed div."""
+    x = item.get("x", 0)
+    y = item.get("y", 0)
+    w = item.get("w", DEFAULT_W)
+    h = item.get("h", DEFAULT_H)
 
     if widget_id == "clock":
-        content = html.Div(
-            clock.layout(), id="clock", className="widget",
-            style={"height": "100%", "overflow": "auto", "boxSizing": "border-box"},
-        )
+        inner = html.Div(clock.layout(), id="clock", className="widget",
+                         style={"height": "100%", "overflow": "auto", "boxSizing": "border-box"})
     elif widget_id == "google_calendar":
-        content = html.Div(
-            google_calendar.layout(), id="google_calendar", className="widget",
-            style={"height": "100%", "overflow": "auto", "boxSizing": "border-box"},
-        )
+        inner = html.Div(google_calendar.layout(), id="google_calendar", className="widget",
+                         style={"height": "100%", "overflow": "auto", "boxSizing": "border-box"})
     elif widget_id.startswith(WEATHER_PREFIX):
         loc_id = widget_id[len(WEATHER_PREFIX):]
-        content = html.Div(
-            id={"type": "weather-panel", "id": loc_id},
-            className="widget",
-            style={"height": "100%", "overflow": "auto", "boxSizing": "border-box"},
-        )
+        inner = html.Div(id={"type": "weather-panel", "id": loc_id}, className="widget",
+                         style={"height": "100%", "overflow": "auto", "boxSizing": "border-box"})
     else:
         return None
 
-    return dash_draggable.DashboardItem(i=widget_id, x=x, y=y, w=w, h=h, children=content)
+    return html.Div(
+        inner,
+        style={
+            "gridColumn": f"{x + 1} / span {w}",
+            "gridRow":    f"{y + 1} / span {h}",
+        },
+    )
 
 
 def ensure_layout(page):
@@ -89,33 +89,27 @@ def render_page(page_id):
         return html.Div("Page not found."), {}
 
     page = ensure_layout(page)
-    save_config(config)  # persist any new default layout entries
+    save_config(config)
 
     layout_map = {item["i"]: item for item in page["layout"]["lg"]}
+    cells = [build_widget_cell(wid, layout_map.get(wid, {})) for wid in page["widget_ids"]]
+    cells = [c for c in cells if c is not None]
 
-    children = []
-    for wid in page["widget_ids"]:
-        child = build_grid_child(wid, layout_map.get(wid, {}))
-        if child is not None:
-            children.append(child)
-
-    if not children:
+    if not cells:
         return (
             html.Div("No widgets on this page. Add some in Admin.",
                      style={"padding": "40px", "textAlign": "center", "color": "#aaa"}),
             {},
         )
 
-    grid = dash_draggable.GridLayout(
-        id={"type": "draggable-grid", "page": page_id},
-        children=children,
-        layout=page["layout"].get("lg", []),
-        save=False,
-        isDraggable=False,
-        isResizable=False,
-        gridCols=12,
-        height=ROW_HEIGHT,
-        style={"padding": "16px"},
+    grid = html.Div(
+        cells,
+        style={
+            "display": "grid",
+            "gridTemplateColumns": "repeat(12, 1fr)",
+            "gridAutoRows": f"{ROW_HEIGHT}px",
+            "gap": "16px",
+            "padding": "16px",
+        },
     )
-    store_data = {"page_id": page_id, "widget_ids": page["widget_ids"]}
-    return grid, store_data
+    return grid, {"page_id": page_id, "widget_ids": page["widget_ids"]}
