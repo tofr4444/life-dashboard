@@ -1,4 +1,5 @@
 import datetime
+from zoneinfo import ZoneInfo
 import requests
 from dash import html, dcc, callback, Output, Input
 import plotly.graph_objects as go
@@ -31,11 +32,12 @@ def fetch_weather(lat, lon):
 
 def hourly_chart(data):
     hourly = data["hourly"]
-    now = datetime.datetime.now()
+    tz = ZoneInfo(data["timezone"])
+    now = datetime.datetime.now(tz)
 
     times, temps, feels, precip_prob = [], [], [], []
     for i, t in enumerate(hourly["time"]):
-        dt = datetime.datetime.fromisoformat(t)
+        dt = datetime.datetime.fromisoformat(t).replace(tzinfo=tz)
         if dt.date() == now.date():
             times.append(dt.strftime("%I %p").lstrip("0"))
             temps.append(hourly["temperature_2m"][i])
@@ -116,7 +118,8 @@ def build_callback(widget_id, lat, lon, label):
         sunrise = daily["sunrise"][0][11:]
         sunset = daily["sunset"][0][11:]
 
-        now_hour = datetime.datetime.now().hour
+        tz = ZoneInfo(data["timezone"])
+        now_hour = datetime.datetime.now(tz).hour
         hourly = data["hourly"]
         current_temp = hourly["temperature_2m"][now_hour]
         current_feels = hourly["apparent_temperature"][now_hour]
