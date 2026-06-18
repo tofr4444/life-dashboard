@@ -42,7 +42,16 @@ def hourly_chart(data):
             feels.append(hourly["apparent_temperature"][i])
             precip_prob.append(hourly["precipitation_probability"][i])
 
+    now_label = now.strftime("%I %p").lstrip("0")
+
     fig = go.Figure()
+    fig.add_vline(
+        x=now_label,
+        line=dict(color="#6366f1", width=2, dash="dash"),
+        annotation_text="Now",
+        annotation_position="top",
+        annotation_font=dict(color="#6366f1", size=11),
+    )
     fig.add_trace(go.Scatter(
         x=times, y=temps, name="Temp °F", mode="lines+markers",
         line=dict(color="#f97316", width=2), marker=dict(size=5),
