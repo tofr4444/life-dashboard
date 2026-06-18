@@ -27,10 +27,44 @@ def all_widget_options(config):
     return opts
 
 
+def render_widget_layout_row(widget_id, label, layout_item):
+    """One row per widget: checkbox + label + X Y W H inputs."""
+    x = layout_item.get("x", 0)
+    y = layout_item.get("y", 0)
+    w = layout_item.get("w", 4)
+    h = layout_item.get("h", 6)
+    num_style = {**INPUT_STYLE, "width": "52px", "textAlign": "center"}
+    return html.Div([
+        html.Span(label, style={"flex": "1", "fontSize": "0.875rem", "fontWeight": "500"}),
+        html.Span("X", style={"fontSize": "0.75rem", "color": "#888", "marginRight": "2px"}),
+        dcc.Input(id={"type": "layout-x", "wid": widget_id}, type="number",
+                  value=x, min=0, max=11, step=1, style=num_style),
+        html.Span("Y", style={"fontSize": "0.75rem", "color": "#888",
+                              "marginLeft": "6px", "marginRight": "2px"}),
+        dcc.Input(id={"type": "layout-y", "wid": widget_id}, type="number",
+                  value=y, min=0, max=99, step=1, style=num_style),
+        html.Span("W", style={"fontSize": "0.75rem", "color": "#888",
+                              "marginLeft": "6px", "marginRight": "2px"}),
+        dcc.Input(id={"type": "layout-w", "wid": widget_id}, type="number",
+                  value=w, min=1, max=12, step=1, style=num_style),
+        html.Span("H", style={"fontSize": "0.75rem", "color": "#888",
+                              "marginLeft": "6px", "marginRight": "2px"}),
+        dcc.Input(id={"type": "layout-h", "wid": widget_id}, type="number",
+                  value=h, min=1, max=20, step=1, style=num_style),
+    ], style={"display": "flex", "alignItems": "center", "gap": "4px",
+              "padding": "6px 0", "borderBottom": "1px solid #f5f5f5"})
+
+
 def render_pages_section(config):
     opts = all_widget_options(config)
+    opt_map = {o["value"]: o["label"] for o in opts}
     sections = []
     for page in config["pages"]:
+        layout_map = {item["i"]: item for item in page.get("layout", {}).get("lg", [])}
+        widget_rows = [
+            render_widget_layout_row(wid, opt_map.get(wid, wid), layout_map.get(wid, {}))
+            for wid in page.get("widget_ids", [])
+        ]
         sections.append(html.Div([
             html.Div([
                 html.H4(page["name"], style={"margin": 0, "flex": "1"}),
@@ -38,6 +72,8 @@ def render_pages_section(config):
                             id={"type": "delete-page", "index": page["id"]},
                             className="btn btn-danger", n_clicks=0),
             ], style={"display": "flex", "alignItems": "center", "marginBottom": "10px"}),
+
+            # Widget checklist
             html.P("Widgets on this page:", style={"margin": "0 0 6px", "fontSize": "0.875rem",
                                                     "color": "#555"}),
             dcc.Checklist(
@@ -47,6 +83,27 @@ def render_pages_section(config):
                 labelStyle={"display": "flex", "gap": "8px", "alignItems": "center",
                             "marginBottom": "6px", "cursor": "pointer"},
             ),
+
+            # Layout editor — only shown when there are widgets
+            html.Div([
+                html.Div([
+                    html.Span("Widget", style={"flex": "1", "fontSize": "0.75rem",
+                                              "color": "#888", "fontWeight": "600"}),
+                    html.Span("X  Y  W  H  (12-col grid, row-height=80px)",
+                              style={"fontSize": "0.75rem", "color": "#aaa"}),
+                ], style={"display": "flex", "marginBottom": "4px"}),
+                html.Div(widget_rows),
+                html.Div([
+                    html.Button("Save Layout",
+                                id={"type": "save-layout-btn", "index": page["id"]},
+                                className="btn btn-primary", n_clicks=0,
+                                style={"marginTop": "10px"}),
+                    html.Span(id={"type": "layout-save-status", "index": page["id"]},
+                              style={"marginLeft": "10px", "color": "#22c55e",
+                                     "fontSize": "0.875rem"}),
+                ]),
+            ], style={"marginTop": "14px"}) if page.get("widget_ids") else html.Div(),
+
             html.Div(id={"type": "page-save-status", "index": page["id"]},
                      style={"color": "#22c55e", "fontSize": "0.875rem", "marginTop": "4px"}),
         ], style={"marginBottom": "24px", "paddingBottom": "20px",
@@ -99,8 +156,8 @@ def layout():
         html.Div([
             html.H3("Pages & Widgets", style={"marginTop": 0}),
             html.P("Each page appears as a tab on the dashboard. "
-                   "Check the widgets you want on each page. "
-                   "Drag and resize widgets directly on the dashboard.",
+                   "Check the widgets you want on each page, then set X/Y/W/H to position them. "
+                   "X = column (0–11), Y = row, W = width in columns, H = height in rows (1 row = 80px).",
                    style={"color": "#666", "fontSize": "0.875rem", "margin": "0 0 16px"}),
             render_pages_section(config),
         ], className="admin-section"),
@@ -279,6 +336,41 @@ def search_city(_, city_name):
     ], style={"background": "#f8fafc", "borderRadius": "6px",
               "padding": "14px", "marginTop": "4px"})
     return form, results
+
+
+@callback(
+    Output({"type": "layout-save-status", "index": MATCH}, "children"),
+    Input({"type": "save-layout-btn", "index": MATCH}, "n_clicks"),
+    State({"type": "save-layout-btn", "index": MATCH}, "id"),
+    State({"type": "layout-x", "wid": ALL}, "value"),
+    State({"type": "layout-y", "wid": ALL}, "value"),
+    State({"type": "layout-w", "wid": ALL}, "value"),
+    State({"type": "layout-h", "wid": ALL}, "value"),
+    State({"type": "layout-x", "wid": ALL}, "id"),
+    prevent_initial_call=True,
+)
+def save_page_layout(n_clicks, btn_id, xs, ys, ws, hs, wid_ids):
+    if not n_clicks:
+        return no_update
+    page_id = btn_id["index"]
+    # wid_ids is a list of {"type": "layout-x", "wid": widget_id}
+    # All four lists (xs, ys, ws, hs) are in the same order
+    new_lg = []
+    for i, wid_obj in enumerate(wid_ids):
+        new_lg.append({
+            "i": wid_obj["wid"],
+            "x": int(xs[i] or 0),
+            "y": int(ys[i] or 0),
+            "w": int(ws[i] or 4),
+            "h": int(hs[i] or 6),
+        })
+    config = load_config()
+    for page in config["pages"]:
+        if page["id"] == page_id:
+            page["layout"] = {"lg": new_lg}
+            break
+    save_config(config)
+    return "Saved — reload the dashboard to apply."
 
 
 @callback(
