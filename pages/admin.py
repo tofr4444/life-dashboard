@@ -78,7 +78,7 @@ def layout():
             html.H4("Add a Location", style={"margin": "0 0 12px"}),
             html.Div([
                 dcc.Input(id="city-search-input", type="text",
-                          placeholder="City name…", debounce=False,
+                          placeholder="City name or 'City, State'", debounce=False,
                           style={**INPUT_STYLE, "width": "200px", "marginRight": "8px"}),
                 html.Button("Search", id="city-search-btn",
                             className="btn btn-primary", n_clicks=0),
@@ -133,10 +133,12 @@ def remove_weather_location(n_clicks):
 def search_city(_, city_name):
     if not city_name or not city_name.strip():
         return html.Div("Please enter a city name.", style={"color": "#f59e0b"}), None
+    # Strip state/country suffix (e.g. "Casper, WY" → "Casper")
+    search_term = city_name.strip().split(",")[0].strip()
     try:
         r = requests.get(
             "https://geocoding-api.open-meteo.com/v1/search",
-            params={"name": city_name.strip(), "count": 5},
+            params={"name": search_term, "count": 5},
             timeout=10,
         )
         results = r.json().get("results", [])
