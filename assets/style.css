@@ -1,0 +1,62 @@
+body {
+    font-family: sans-serif;
+    background: #f5f5f5;
+    margin: 0;
+}
+
+.widget-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 20px;
+    padding: 24px;
+}
+
+.widget {
+    background: white;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.nav {
+    background: #1e293b;
+    padding: 12px 24px;
+    display: flex;
+    gap: 20px;
+    align-items: center;
+}
+.nav-title {
+    color: white;
+    font-weight: bold;
+    font-size: 1.1rem;
+    margin-right: 12px;
+    text-decoration: none;
+}
+.nav a {
+    color: #94a3b8;
+    text-decoration: none;
+    font-size: 0.95rem;
+}
+.nav a:hover {
+    color: white;
+}
+
+.admin-section {
+    background: white;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    margin-bottom: 20px;
+}
+
+.btn {
+    padding: 7px 16px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.875rem;
+}
+.btn-primary { background: #3b82f6; color: white; }
+.btn-success { background: #22c55e; color: white; }
+.btn-danger  { background: #ef4444; color: white; }
+.btn:hover { opacity: 0.85; }

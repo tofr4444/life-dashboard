@@ -1,0 +1,10 @@
+{
+  "widgets": {
+    "clock": {"enabled": true, "label": "Clock"},
+    "google_calendar": {"enabled": true, "label": "Google Calendar"}
+  },
+  "weather_locations": [
+    {"id": "home", "title": "Home Weather", "lat": 33.9787, "lon": -84.4063, "label": "Marietta, GA"},
+    {"id": "winona_tx", "title": "Winona Weather", "lat": 32.4896, "lon": -95.1672, "label": "Winona, TX"}
+  ]
+}

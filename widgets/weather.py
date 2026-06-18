@@ -3,6 +3,7 @@ from zoneinfo import ZoneInfo
 import requests
 from dash import html, dcc, callback, Output, Input
 import plotly.graph_objects as go
+from data.config_utils import load_config
 
 WMO_CODES = {
     0: ("Clear", "☀️"), 1: ("Mostly Clear", "🌤️"), 2: ("Partly Cloudy", "⛅"),
@@ -87,63 +88,66 @@ def hourly_chart(data):
     return fig
 
 
-def build_layout(widget_id, title="Weather"):
-    return html.Div([
-        html.H3(title, style={"marginTop": 0}),
-        html.Div(id=f"{widget_id}-summary", style={"marginBottom": "10px"}),
-        dcc.Graph(id=f"{widget_id}-chart", config={"displayModeBar": False}),
-        html.Div(id=f"{widget_id}-details", style={"fontSize": "0.8rem", "color": "#666", "marginTop": "8px"}),
-        dcc.Interval(id=f"{widget_id}-interval", interval=30 * 60 * 1000, n_intervals=0),
+def render_location_panel(loc, data):
+    tz = ZoneInfo(data["timezone"])
+    now_hour = datetime.datetime.now(tz).hour
+    hourly = data["hourly"]
+    daily = data["daily"]
+
+    code = daily["weathercode"][0]
+    desc, icon = WMO_CODES.get(code, ("Unknown", "🌡️"))
+    hi = daily["temperature_2m_max"][0]
+    lo = daily["temperature_2m_min"][0]
+    sunrise = daily["sunrise"][0][11:]
+    sunset = daily["sunset"][0][11:]
+
+    current_temp = hourly["temperature_2m"][now_hour]
+    current_feels = hourly["apparent_temperature"][now_hour]
+    current_humid = hourly["relativehumidity_2m"][now_hour]
+    current_wind = hourly["windspeed_10m"][now_hour]
+
+    summary = html.Div([
+        html.Span(f"{icon} {desc}  ", style={"fontSize": "1.1rem"}),
+        html.Span(f"{current_temp:.0f}°F", style={"fontSize": "1.8rem", "fontWeight": "bold"}),
+        html.Span(f"  feels {current_feels:.0f}°F", style={"color": "#888"}),
+        html.Div(f"H: {hi:.0f}°  L: {lo:.0f}°  |  {loc['label']}",
+                 style={"color": "#666", "fontSize": "0.85rem"}),
     ])
+    details = (f"Humidity: {current_humid}%  |  Wind: {current_wind:.0f} mph  |  "
+               f"Sunrise: {sunrise}  |  Sunset: {sunset}")
 
-
-def build_callback(widget_id, lat, lon, label):
-    @callback(
-        Output(f"{widget_id}-summary", "children"),
-        Output(f"{widget_id}-chart", "figure"),
-        Output(f"{widget_id}-details", "children"),
-        Input(f"{widget_id}-interval", "n_intervals"),
-    )
-    def update(_):
-        try:
-            data = fetch_weather(lat, lon)
-        except Exception as e:
-            return f"Error: {e}", go.Figure(), ""
-
-        daily = data["daily"]
-        code = daily["weathercode"][0]
-        desc, icon = WMO_CODES.get(code, ("Unknown", "🌡️"))
-        hi = daily["temperature_2m_max"][0]
-        lo = daily["temperature_2m_min"][0]
-        sunrise = daily["sunrise"][0][11:]
-        sunset = daily["sunset"][0][11:]
-
-        tz = ZoneInfo(data["timezone"])
-        now_hour = datetime.datetime.now(tz).hour
-        hourly = data["hourly"]
-        current_temp = hourly["temperature_2m"][now_hour]
-        current_feels = hourly["apparent_temperature"][now_hour]
-        current_humid = hourly["relativehumidity_2m"][now_hour]
-        current_wind = hourly["windspeed_10m"][now_hour]
-
-        summary = html.Div([
-            html.Span(f"{icon} {desc}  ", style={"fontSize": "1.1rem"}),
-            html.Span(f"{current_temp:.0f}°F", style={"fontSize": "1.8rem", "fontWeight": "bold"}),
-            html.Span(f"  feels {current_feels:.0f}°F", style={"color": "#888"}),
-            html.Div(f"H: {hi:.0f}°  L: {lo:.0f}°  |  {label}", style={"color": "#666", "fontSize": "0.85rem"}),
-        ])
-        details = f"Humidity: {current_humid}%  |  Wind: {current_wind:.0f} mph  |  Sunrise: {sunrise}  |  Sunset: {sunset}"
-        return summary, hourly_chart(data), details
-
-    return update
-
-
-# Marietta, GA — 1255 Lake Colony Drive
-LAT, LON, LABEL = 33.9787, -84.4063, "Marietta, GA"
-WIDGET_ID = "weather-marietta"
-
-build_callback(WIDGET_ID, LAT, LON, LABEL)
+    return html.Div([
+        html.H3(loc["title"], style={"marginTop": 0}),
+        html.Div(summary, style={"marginBottom": "10px"}),
+        dcc.Graph(id=f"weather-chart-{loc['id']}", figure=hourly_chart(data),
+                  config={"displayModeBar": False}),
+        html.Div(details, style={"fontSize": "0.8rem", "color": "#666", "marginTop": "8px"}),
+    ], className="widget")
 
 
 def layout():
-    return build_layout(WIDGET_ID, title="Home Weather")
+    return html.Div([
+        html.Div(id="weather-panels", className="widget-grid",
+                 style={"paddingTop": 0}),
+        dcc.Interval(id="weather-interval", interval=30 * 60 * 1000, n_intervals=0),
+    ])
+
+
+@callback(Output("weather-panels", "children"), Input("weather-interval", "n_intervals"))
+def update_all_weather(_):
+    config = load_config()
+    locations = config.get("weather_locations", [])
+    if not locations:
+        return html.Div("No weather locations configured. Add some in Admin.",
+                        style={"color": "#aaa", "padding": "20px"})
+    panels = []
+    for loc in locations:
+        try:
+            data = fetch_weather(loc["lat"], loc["lon"])
+            panels.append(render_location_panel(loc, data))
+        except Exception as e:
+            panels.append(html.Div([
+                html.H3(loc["title"], style={"marginTop": 0}),
+                html.Div(f"Error: {e}", style={"color": "red"}),
+            ], className="widget"))
+    return panels
