@@ -133,12 +133,15 @@ def remove_weather_location(n_clicks):
 def search_city(_, city_name):
     if not city_name or not city_name.strip():
         return html.Div("Please enter a city name.", style={"color": "#f59e0b"}), None
-    # Strip state/country suffix (e.g. "Casper, WY" → "Casper")
-    search_term = city_name.strip().split(",")[0].strip()
+
+    parts = [p.strip() for p in city_name.strip().split(",")]
+    search_term = parts[0]
+    hint = parts[1].lower() if len(parts) > 1 else ""
+
     try:
         r = requests.get(
             "https://geocoding-api.open-meteo.com/v1/search",
-            params={"name": search_term, "count": 5},
+            params={"name": search_term, "count": 10},
             timeout=10,
         )
         results = r.json().get("results", [])
@@ -148,6 +151,20 @@ def search_city(_, city_name):
     if not results:
         return html.Div("No results found.", style={"color": "#f59e0b"}), None
 
+    # If user gave a hint (state abbrev or name), bubble matching results to the top
+    if hint:
+        def hint_score(res):
+            haystack = " ".join(filter(None, [
+                res.get("admin1", ""), res.get("admin2", ""),
+                res.get("country", ""), res.get("country_code", ""),
+            ])).lower()
+            return 0 if hint in haystack else 1
+        results = sorted(results, key=hint_score)
+
+    # Keep top 5 after re-ranking
+    results = results[:5]
+
+    best = results[0]
     options = [
         {
             "label": ", ".join(filter(None, [
@@ -157,11 +174,12 @@ def search_city(_, city_name):
         }
         for i, res in enumerate(results)
     ]
-    default_title = f"{results[0]['name']} Weather"
+    default_title = f"{best['name']} Weather"
 
     form = html.Div([
-        html.Label("Select location:", style={"fontSize": "0.875rem", "marginBottom": "4px",
-                                               "display": "block"}),
+        html.Label(f"{len(results)} result(s) found — select the correct one:",
+                   style={"fontSize": "0.875rem", "marginBottom": "4px", "display": "block",
+                          "fontWeight": "500"}),
         dcc.Dropdown(id="city-result-dropdown", options=options, value=0,
                      clearable=False, style={"marginBottom": "10px"}),
         html.Label("Widget title:", style={"fontSize": "0.875rem", "marginBottom": "4px",
