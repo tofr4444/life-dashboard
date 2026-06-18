@@ -27,29 +27,30 @@ def all_widget_options(config):
     return opts
 
 
-def render_widget_layout_row(widget_id, label, layout_item):
-    """One row per widget: checkbox + label + X Y W H inputs."""
+def render_widget_layout_row(widget_id, page_id, label, layout_item):
+    """One row per widget: label + X Y W H inputs. page_id is encoded in component IDs."""
     x = layout_item.get("x", 0)
     y = layout_item.get("y", 0)
     w = layout_item.get("w", 4)
     h = layout_item.get("h", 6)
     num_style = {**INPUT_STYLE, "width": "52px", "textAlign": "center"}
+    key = {"wid": widget_id, "page": page_id}
     return html.Div([
         html.Span(label, style={"flex": "1", "fontSize": "0.875rem", "fontWeight": "500"}),
         html.Span("X", style={"fontSize": "0.75rem", "color": "#888", "marginRight": "2px"}),
-        dcc.Input(id={"type": "layout-x", "wid": widget_id}, type="number",
+        dcc.Input(id={**key, "type": "layout-x"}, type="number",
                   value=x, min=0, max=11, step=1, style=num_style),
         html.Span("Y", style={"fontSize": "0.75rem", "color": "#888",
                               "marginLeft": "6px", "marginRight": "2px"}),
-        dcc.Input(id={"type": "layout-y", "wid": widget_id}, type="number",
+        dcc.Input(id={**key, "type": "layout-y"}, type="number",
                   value=y, min=0, max=99, step=1, style=num_style),
         html.Span("W", style={"fontSize": "0.75rem", "color": "#888",
                               "marginLeft": "6px", "marginRight": "2px"}),
-        dcc.Input(id={"type": "layout-w", "wid": widget_id}, type="number",
+        dcc.Input(id={**key, "type": "layout-w"}, type="number",
                   value=w, min=1, max=12, step=1, style=num_style),
         html.Span("H", style={"fontSize": "0.75rem", "color": "#888",
                               "marginLeft": "6px", "marginRight": "2px"}),
-        dcc.Input(id={"type": "layout-h", "wid": widget_id}, type="number",
+        dcc.Input(id={**key, "type": "layout-h"}, type="number",
                   value=h, min=1, max=20, step=1, style=num_style),
     ], style={"display": "flex", "alignItems": "center", "gap": "4px",
               "padding": "6px 0", "borderBottom": "1px solid #f5f5f5"})
@@ -62,7 +63,7 @@ def render_pages_section(config):
     for page in config["pages"]:
         layout_map = {item["i"]: item for item in page.get("layout", {}).get("lg", [])}
         widget_rows = [
-            render_widget_layout_row(wid, opt_map.get(wid, wid), layout_map.get(wid, {}))
+            render_widget_layout_row(wid, page["id"], opt_map.get(wid, wid), layout_map.get(wid, {}))
             for wid in page.get("widget_ids", [])
         ]
         sections.append(html.Div([
@@ -342,21 +343,22 @@ def search_city(_, city_name):
     Output({"type": "layout-save-status", "index": MATCH}, "children"),
     Input({"type": "save-layout-btn", "index": MATCH}, "n_clicks"),
     State({"type": "save-layout-btn", "index": MATCH}, "id"),
-    State({"type": "layout-x", "wid": ALL}, "value"),
-    State({"type": "layout-y", "wid": ALL}, "value"),
-    State({"type": "layout-w", "wid": ALL}, "value"),
-    State({"type": "layout-h", "wid": ALL}, "value"),
-    State({"type": "layout-x", "wid": ALL}, "id"),
+    State({"type": "layout-x", "wid": ALL, "page": ALL}, "value"),
+    State({"type": "layout-y", "wid": ALL, "page": ALL}, "value"),
+    State({"type": "layout-w", "wid": ALL, "page": ALL}, "value"),
+    State({"type": "layout-h", "wid": ALL, "page": ALL}, "value"),
+    State({"type": "layout-x", "wid": ALL, "page": ALL}, "id"),
     prevent_initial_call=True,
 )
 def save_page_layout(n_clicks, btn_id, xs, ys, ws, hs, wid_ids):
     if not n_clicks:
         return no_update
     page_id = btn_id["index"]
-    # wid_ids is a list of {"type": "layout-x", "wid": widget_id}
-    # All four lists (xs, ys, ws, hs) are in the same order
+    # Filter to only the inputs belonging to this page
     new_lg = []
     for i, wid_obj in enumerate(wid_ids):
+        if wid_obj["page"] != page_id:
+            continue
         new_lg.append({
             "i": wid_obj["wid"],
             "x": int(xs[i] or 0),
